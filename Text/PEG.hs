@@ -11,7 +11,7 @@
 
 
 {-# LANGUAGE FlexibleContexts #-}
-module PEGParser
+module Text.PEG
     ( PEG(..)
     , Rule(..)
     , Expr(..)
@@ -33,7 +33,7 @@ import Text.Parsec
 -- Data Model
 --------------------------------------------------------------------------------
 
-type PEG = [Rule]
+type PEG = [Either Rule String]
 
 newtype Rule = Rule (String, Expr)
     deriving (Show, Eq)
@@ -58,12 +58,12 @@ data Expr = XLit String
 peg :: Stream s m Char => ParsecT s u m PEG
 peg = do
     spaces
-    fmap catMaybes $ line `manyTill` eof
+    line `manyTill` eof
 
-line :: Stream s m Char => ParsecT s u m (Maybe Rule)
+line :: Stream s m Char => ParsecT s u m (Either Rule String)
 line = do
-    ret <- (void comment >> return Nothing)
-      <|> fmap Just rule
+    ret <- (comment >>= return . Right)
+      <|> fmap Left rule
     spaces
     return ret
 

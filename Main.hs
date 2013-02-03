@@ -8,7 +8,7 @@ import System.Environment (getArgs)
 
 import Text.Parsec
 
-import PEGParser
+import Text.PEG
 
 main = do
     (fn:_) <- getArgs
