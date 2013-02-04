@@ -2,7 +2,7 @@
  - Zachary Weaver <zearen.wover@gmail.com>
  - AKA Zearen Wover, ziren.uovr
  -
- - PEGParser.hs
+ - Text/PEG.hs
  -
  - Creates a data model for the PEG grammar used for lojban so it
  - can be returned in various other parser formats, including
