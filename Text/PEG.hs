@@ -28,6 +28,7 @@ import Data.List
 
 import Text.Parsec
 
+import Util
 
 --------------------------------------------------------------------------------
 -- Data Model
@@ -245,14 +246,6 @@ range isNewLine startO endO =  tokenPrim show nextPos checkRange
 
 charRange :: Stream s m Char => Char -> Char -> ParsecT s u m Char
 charRange = range (=='\n')
-
-(><) :: a -> b -> (a, b)
-a >< b = (a, b)
-infix 0 ><
-
-(??) :: a -> a -> Bool -> a
-(left ?? right) tf = if tf then left else right
-infix 1 ??
 
 --------------------------------------------------------------------------------
 -- Shortcuts for debugging
