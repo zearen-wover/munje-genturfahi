@@ -14,6 +14,7 @@ module Util
 
 (.:) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.:) = (.).(.)
+infixr 9 .:
 
 (??) :: a -> a -> Bool -> a
 (left ?? right) tf = if tf then left else right

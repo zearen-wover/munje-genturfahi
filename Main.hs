@@ -16,6 +16,7 @@ import Text.Parsec
 
 import Data.Dependency
 import Text.PEG
+import Text.PEG.Output.PyParsing
 import Util
 
 newtype IntDep = IntDep (Int, [Int])
@@ -32,9 +33,11 @@ loadPeg = do
     txt <- if null args
         then getLine
         else readFile $ head args
-    return $ parse peg ((""??head args) $ null args) txt
+    case parse peg ((""??head args) $ null args) txt of
+        (Left err) -> fail $ show err
+        (Right thePeg) -> return thePeg
 
-main0 = loadPeg
+main0 = loadPeg >>= print
 
 main1 = do
     let (satOrd, mutRec) = orderDependencies depList
@@ -50,3 +53,7 @@ main1 = do
             , 4  >< [5]
             , 5  >< [4]
             ]
+
+main2 = do
+    thePeg <- loadPeg
+    putStrLn $ showPEG thePeg

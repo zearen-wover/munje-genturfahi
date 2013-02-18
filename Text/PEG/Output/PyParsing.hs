@@ -6,8 +6,11 @@
  -}
 
 {-# LANGUAGE FunctionalDependencies #-}
-module Text.Peg.Output.PyParsing
-    ( showPEG
+{-# LANGUAGE FlexibleInstances #-}
+module Text.PEG.Output.PyParsing
+    ( convertIdent
+    , showPEG
+    , showsPEG
     , showRule
     , showForwardRule
     , showExpr
@@ -26,10 +29,10 @@ import Text.PEG hiding (peg)
 import Data.Dependency
 import Util
 
-instance HasDependencies Rule String where
+instance HasDependencies Rule [Char] where
     name (Rule (n, _)) = n
     dependencies (Rule (_, expr)) = getDeps expr
-      where getDepsExprs = foldl' (flip (++)) []
+      where getDepsExprs = foldl' (flip (++)) [] . map getDeps
             getDeps (XIdent dep) = [dep]
             getDeps (XLit _) = []
             getDeps XAny = []
@@ -42,31 +45,43 @@ instance HasDependencies Rule String where
             getDeps (XConcat xs) = getDepsExprs xs
             getDeps (XAlt xs) = getDepsExprs xs
 
+convertIdent = map replaceChar
+  where replaceChar ch
+            | ch == '-' = '_'
+            | otherwise = ch
+
 showRule :: Rule -> String
 showRule = flip showsRule []
 
 showsRule :: Rule -> ShowS
-showsRule (Rule (name, expr)) = (rule++) . (" = "++) . showsExpr expr
+showsRule (Rule (name, expr)) = (convertIdent name++) . (" = "++) . showsExpr expr
+
+showForward :: String -> String
+showForward = flip showsForward []
+
+showsForward :: String -> ShowS
+showsForward str = (convertIdent str++) . (" = Forward()"++)
 
 showForwardRule :: Rule -> String
 showForwardRule = flip showsForwardRule []
 
 showsForwardRule :: Rule -> ShowS
-showsForwardRule (Rule (name, expr)) = (rule++) . (" << ("++) . showsExpr expr . (")"++)
+showsForwardRule (Rule (name, expr)) = (convertIdent name++) . (" << ("++) . showsExpr expr . (")"++)
 
 showExpr :: Expr -> String
 showExpr = flip showsExpr []
 
 intersperses :: ShowS -> [ShowS] -> ShowS
-intersperses sep ss =  foldl' (\acc x -> acc . sep . x) id ss
+intersperses sep ss =  foldl1' (\acc x -> acc . sep . x) ss
 
 showsExpr :: Expr -> ShowS
 showsExpr (XLit str) = ("Literal('"++) . (str++) . ("')"++)
-showsExpr (XIdent str) = ("Group('"++) . (str++) . ("')"++)
-showsExpr (XConcat xs) = intersperses (" + "++) map group $xs
+--showsExpr (XIdent str) = ("Group('"++) . (convertIdent str++) . ("')"++)
+showsExpr (XIdent str) = (convertIdent str++)
+showsExpr (XConcat xs) = intersperses (" + "++) $ map group $ xs
   where group xalt@(XAlt _) = ("("++) . showsExpr xalt . (")"++)
-        group expr = expr
-showsExpr (XAlt xs) = intersperses (" | " ++) xs
+        group expr = showsExpr expr
+showsExpr (XAlt xs) = intersperses (" | " ++) $ map showsExpr xs
 showsExpr (XOpt expr) = ("Optional("++) . showsExpr expr . (")"++)
 showsExpr (X0More XAny) = ("Empty()"++)
 showsExpr (X0More expr) = ("ZeroOrMore("++) . showsExpr expr . (")"++)
@@ -82,17 +97,14 @@ showsExpr (XClass ranges) = ("Regex('["++) . foldl' rangeS id ranges . ("]')"++)
   where rangeS acc (Left c) = acc . (c:)
         rangeS acc (Right (cs, ce)) = acc . (cs:) . ('-':) . (ce:)
 
-showForward :: String -> String
-showForward = flip showsForward []
-
-showsForward :: String -> ShowS
-showsForward str = (str++) . (" = Forward()"++)
-
 orderPEG :: PEG -> ([Rule], [Rule])
 orderPEG = orderDependencies . lefts
 
+showPEG :: PEG -> String
+showPEG = flip showsPEG []
+
 showsPEG :: PEG -> ShowS
-showsPEG thePEG = foldl' (.) id (map (.('\n':) . showsRule) sats)
-    . foldl (.) id (map (.('\n':) . showsForward . (\Rule (n,_)-> n)) recs)
-    . foldl' (.) id (map (.('\n':) . showsRule) recs)
+showsPEG thePEG = foldl' (.) id (map ((.('\n':)) . showsRule) sats)
+    . foldl' (.) id (map ((.('\n':)) . showsForward . name) recs)
+    . foldl' (.) id (map ((.('\n':)) . showsForwardRule) recs)
   where (sats, recs) = orderPEG thePEG

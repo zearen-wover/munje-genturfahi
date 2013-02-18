@@ -63,7 +63,7 @@ peg = do
 
 line :: Stream s m Char => ParsecT s u m (Either Rule String)
 line = do
-    ret <- fmap Rightcomment
+    ret <- fmap Right comment
       <|> fmap Left rule
     spaces
     return ret
