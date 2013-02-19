@@ -99,11 +99,8 @@ identifier = many1 validChar
 
 -- | Parses a PEG parsing expression.
 -- 'endP' marks the end of an expression, for example a line end or a semi
-expr :: Stream s m Char
-    => ParsecT s u m ()
-        -- ^ endP, the terminal expression
-    -> ParsecT s u m Expr
-expr endP = do
+unit :: Stream s m Char => ParsecT s u m Expr
+unit = do
     -- We get the first atom
     thePrefix <- affix prefixes
     x <- fmap (applyAffix prefixes thePrefix) $ do
@@ -114,16 +111,7 @@ expr endP = do
     -- Otherwise, we see should have a single atom
       <|> atom
     theSuffix <- affix suffixes
-    let x' = applyAffix suffixes theSuffix x
-    whitespace
-    -- Next, lets see if we have an alternation
-    try (xAlt x')
-    -- Else, we look for a concatenation
-      <|> try (xConcat x')
-    -- If all else fails, we should be at the end of an expression
-      <|> do
-        endP
-        return x'
+    return $ applyAffix suffixes theSuffix x
   where affix affixes = try (oneOf $ Map.keys affixes) <|> return ' '
         applyAffix affixes = fromMaybe id . flip Map.lookup affixes
         prefixes = Map.fromList
@@ -141,6 +129,26 @@ expr endP = do
             , xAny
             , xClass
             ]
+
+expr :: Stream s m Char
+    => ParsecT s u m ()
+          -- ^ endP, the terminal expression
+    -> ParsecT s u m Expr
+expr endP = (whitespace >> alter) `manyTill` endP >>= encap XAlt
+  where encap _ []  = fail "null expression"
+        encap _ [u] = return u
+        encap ctor lst = return $ ctor lst
+        alter = do
+            lst <- do
+                u <- unit
+                whitespace
+                return u
+              `manyTill`
+                (void (char '/')
+                <|> (try $ lookAhead endP))
+            encap XConcat lst
+
+{-
         xAlt x = do
             char '/'
             whitespace
@@ -151,9 +159,11 @@ expr endP = do
         xConcat x = do
             whitespace
             xTail <- expr endP
-            return . XConcat . (x:) $ case xTail of
-                XConcat cats -> cats
-                _ -> [xTail]
+            return . case xTail of
+                XAlt alts -> 
+                XConcat cats -> XConcat $ x : cats
+                _ -> XConcat [xTail]
+-}
 
 xLit :: Stream s m Char => ParsecT s u m Expr
 xLit = fmap XLit $ xLit' '"' <|> xLit' '\''

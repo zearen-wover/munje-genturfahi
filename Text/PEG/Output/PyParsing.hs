@@ -54,7 +54,8 @@ showRule :: Rule -> String
 showRule = flip showsRule []
 
 showsRule :: Rule -> ShowS
-showsRule (Rule (name, expr)) = (convertIdent name++) . (" = "++) . showsExpr expr
+showsRule (Rule (name, expr)) = (convertIdent name++) . (" = "++) 
+    . showsExpr expr
 
 showForward :: String -> String
 showForward = flip showsForward []
@@ -66,19 +67,20 @@ showForwardRule :: Rule -> String
 showForwardRule = flip showsForwardRule []
 
 showsForwardRule :: Rule -> ShowS
-showsForwardRule (Rule (name, expr)) = (convertIdent name++) . (" << ("++) . showsExpr expr . (")"++)
+showsForwardRule (Rule (name, expr)) = (convertIdent name++) . (" << ("++) 
+    . showsExpr expr . (")"++)
 
 showExpr :: Expr -> String
 showExpr = flip showsExpr []
 
 intersperses :: ShowS -> [ShowS] -> ShowS
-intersperses sep ss =  foldl1' (\acc x -> acc . sep . x) ss
+intersperses sep =  foldl1' (\acc x -> acc . sep . x)
 
 showsExpr :: Expr -> ShowS
 showsExpr (XLit str) = ("Literal('"++) . (str++) . ("')"++)
 --showsExpr (XIdent str) = ("Group('"++) . (convertIdent str++) . ("')"++)
 showsExpr (XIdent str) = (convertIdent str++)
-showsExpr (XConcat xs) = intersperses (" + "++) $ map group $ xs
+showsExpr (XConcat xs) = intersperses (" + "++) $ map group xs
   where group xalt@(XAlt _) = ("("++) . showsExpr xalt . (")"++)
         group expr = showsExpr expr
 showsExpr (XAlt xs) = intersperses (" | " ++) $ map showsExpr xs
