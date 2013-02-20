@@ -54,21 +54,27 @@ showRule :: Rule -> String
 showRule = flip showsRule []
 
 showsRule :: Rule -> ShowS
-showsRule (Rule (name, expr)) = (convertIdent name++) . (" = "++) 
-    . showsExpr expr
+showsRule (Rule (name, expr)) =
+    rName . (" = Group("++) . showsExpr expr . (")"++)
+    . (".setName(\'"++) . rName . ("\')\n"++)
+    . rName . (".resultsName = \'"++) . rName . ("\'"++)
+  where rName = (convertIdent name++)
 
 showForward :: String -> String
 showForward = flip showsForward []
 
 showsForward :: String -> ShowS
-showsForward str = (convertIdent str++) . (" = Forward()"++)
+showsForward str = rName . (" = Forward()"++)
+    . (".setName(\'"++) . rName . ("\')\n"++)
+    . rName . (".resultsName = \'"++) . rName . ("\'"++)
+  where rName = (convertIdent str++)
 
 showForwardRule :: Rule -> String
 showForwardRule = flip showsForwardRule []
 
 showsForwardRule :: Rule -> ShowS
-showsForwardRule (Rule (name, expr)) = (convertIdent name++) . (" << ("++) 
-    . showsExpr expr . (")"++)
+showsForwardRule (Rule (name, expr)) = (convertIdent name++) 
+    . (" << Group("++) . showsExpr expr . (")"++)
 
 showExpr :: Expr -> String
 showExpr = flip showsExpr []
@@ -95,7 +101,8 @@ showsExpr (XNot expr) = ("~"++) . case expr of
     (XAlt _) -> ("("++) . showsExpr expr . (")"++)
     _ -> showsExpr expr
 showsExpr XAny = ("Regex('.')"++)
-showsExpr (XClass ranges) = ("Regex('["++) . foldl' rangeS id ranges . ("]')"++)
+showsExpr (XClass ranges) = ("Regex('["++) . foldl' rangeS id ranges 
+    . ("]')"++)
   where rangeS acc (Left c) = acc . (c:)
         rangeS acc (Right (cs, ce)) = acc . (cs:) . ('-':) . (ce:)
 
@@ -106,7 +113,10 @@ showPEG :: PEG -> String
 showPEG = flip showsPEG []
 
 showsPEG :: PEG -> ShowS
-showsPEG thePEG = foldl' (.) id (map ((.('\n':)) . showsRule) sats)
-    . foldl' (.) id (map ((.('\n':)) . showsForward . name) recs)
+showsPEG thePEG =
+    ("from pyparsing import *\n"++)
+    . ("ParserElement.enablePackrat()\n\n"++)
+    . foldl' (.) id (map ((.('\n':)) . showsRule) sats) . ('\n':)
+    . foldl' (.) id (map ((.('\n':)) . showsForward . name) recs) . ('\n':)
     . foldl' (.) id (map ((.('\n':)) . showsForwardRule) recs)
   where (sats, recs) = orderPEG thePEG
